@@ -1,9 +1,10 @@
 "use client";
 
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { ref, set, serverTimestamp } from "firebase/database";
+import { auth, db } from "@/lib/firebase";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import Link from "next/link";
 
 export default function SignupPage() {
@@ -25,7 +26,30 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await set(ref(db, `users/${user.uid}`), {
+        uid: user.uid,
+        email: user.email,
+        username: "",
+        createdAt: serverTimestamp(),
+        walletAddress: "",
+        currentTournamentId: null,
+        mt5Account: {
+          login: null,
+          investorPassword: null,
+          server: null,
+        },
+        stats: {
+          tournamentsEntered: 0,
+          tournamentsWon: 0,
+          bestRank: null,
+        },
+      });
+
+      router.push("/dashboard");
+
       router.push("/dashboard");
     } catch (err: any) {
       setError(formatFirebaseError(err.message));
