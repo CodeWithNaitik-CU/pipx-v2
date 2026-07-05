@@ -28,6 +28,34 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
+  const [payingLoading, setPayingLoading] = useState(false);
+
+  const handleJoinTournament = async () => {
+    if (!user) return;
+    setPayingLoading(true);
+
+    try {
+      const res = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid, email: user.email }),
+      });
+
+      const data = await res.json();
+
+      if (data.invoiceUrl) {
+        window.location.href = data.invoiceUrl;
+      } else {
+        alert("Something went wrong creating the payment. Please try again.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setPayingLoading(false);
+    }
+  };
+
   if (checkingAuth) {
     return (
       <main className="min-h-screen bg-[#0A0E1A] flex items-center justify-center">
@@ -60,8 +88,20 @@ export default function DashboardPage() {
           Your PipX dashboard is under construction. Tournaments, leaderboard, and MT5 stats will appear here.
         </p>
 
-        <div className="bg-[#121826] border border-gray-800 rounded-2xl p-8 text-center">
-          <p className="text-gray-500">🚧 More features coming as we build 🚧</p>
+        <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 text-center">
+          <h3 className="font-display text-xl font-bold mb-2">
+            No active tournament
+          </h3>
+          <p className="text-gray-400 text-sm mb-6">
+            Join this week's tournament to get your MT5 account and start trading.
+          </p>
+          <button
+            onClick={handleJoinTournament}
+            disabled={payingLoading}
+            className="bg-[#0066FF] hover:bg-[#0052CC] disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-full transition"
+          >
+            {payingLoading ? "Redirecting..." : "Join Tournament"}
+          </button>
         </div>
       </div>
     </main>
