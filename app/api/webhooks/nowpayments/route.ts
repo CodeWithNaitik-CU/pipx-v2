@@ -82,17 +82,23 @@ export async function POST(req: NextRequest) {
         });
 
         // Create a real MT5 demo account for this user
+        // Create a real MT5 demo account for this user
         let mt5Account;
+        let mt5Status = "pending";
         try {
           mt5Account = await createMT5AccountForUser(uid, `${uid}@pipx.trader`);
+          mt5Status = "ready";
           console.log(`MT5 account created for ${uid}:`, mt5Account.login);
         } catch (mt5Error) {
+          mt5Status = "failed";
           console.error(`MT5 provisioning failed for ${uid}:`, mt5Error);
         }
 
         // Update the user's profile
+        // Update the user's profile
         const userUpdate: any = {
           currentTournamentId: tournamentId,
+          mt5Status,
         };
 
         if (mt5Account) {
