@@ -1,4 +1,4 @@
-import MetaApi from "metaapi.cloud-sdk";
+import MetaApi from "metaapi.cloud-sdk/esm-node";
 
 const token = process.env.METAAPI_TOKEN as string;
 const profileId = process.env.METAAPI_PROFILE_ID as string;
