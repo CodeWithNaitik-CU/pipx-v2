@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getCurrentTournamentId, getCurrentWeekRange } from "@/lib/tournament";
+import { createMT5AccountForUser } from "@/lib/metaapi";
 
 function sortObject(obj: any): any {
   if (typeof obj !== "object" || obj === null) return obj;
@@ -45,14 +46,14 @@ export async function POST(req: NextRequest) {
       if (uid) {
         const tournamentId = getCurrentTournamentId();
         const { startDate, endDate } = getCurrentWeekRange();
-        const tournamentRef = ref(db, `tournaments/${tournamentId}`);
+        const tournamentRef = adminDb.ref(`tournaments/${tournamentId}`);
 
         // Check if this week's tournament already exists
-        const snapshot = await get(tournamentRef);
+        const snapshot = await tournamentRef.once("value");
 
         if (!snapshot.exists()) {
           // First person this week — create the tournament
-          await set(tournamentRef, {
+          await tournamentRef.set({
             name: `Weekly Championship - ${tournamentId}`,
             startDate,
             endDate,
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Add this user as a participant
-        await update(ref(db, `tournaments/${tournamentId}/participants/${uid}`), {
+        await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).update({
           joinedAt: Date.now(),
           mt5Login: null,
           startingBalance: 1000,
@@ -74,16 +75,40 @@ export async function POST(req: NextRequest) {
         });
 
         // Increment the prize pool
-        const currentSnapshot = await get(ref(db, `tournaments/${tournamentId}/prizePool`));
+        const currentSnapshot = await adminDb.ref(`tournaments/${tournamentId}/prizePool`).once("value");
         const currentPool = currentSnapshot.val() || 0;
-        await update(tournamentRef, {
+        await tournamentRef.update({
           prizePool: currentPool + 5,
         });
 
+        // Create a real MT5 demo account for this user
+        let mt5Account;
+        try {
+          mt5Account = await createMT5AccountForUser(uid, `${uid}@pipx.trader`);
+          console.log(`MT5 account created for ${uid}:`, mt5Account.login);
+        } catch (mt5Error) {
+          console.error(`MT5 provisioning failed for ${uid}:`, mt5Error);
+        }
+
         // Update the user's profile
-        await update(ref(db, `users/${uid}`), {
+        const userUpdate: any = {
           currentTournamentId: tournamentId,
-        });
+        };
+
+        if (mt5Account) {
+          userUpdate.mt5Account = {
+            login: mt5Account.login,
+            investorPassword: mt5Account.investorPassword,
+            server: mt5Account.server,
+          };
+
+          // Also store MT5 login on the tournament participant entry
+          await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).update({
+            mt5Login: mt5Account.login,
+          });
+        }
+
+        await adminDb.ref(`users/${uid}`).update(userUpdate);
 
         console.log(`User ${uid} joined tournament ${tournamentId}`);
       }
