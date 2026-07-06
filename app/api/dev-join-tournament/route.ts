@@ -45,13 +45,16 @@ export async function POST(req: NextRequest) {
     });
 
     let mt5Account;
+    let mt5Status = "pending";
     try {
       mt5Account = await createMT5AccountForUser(uid, `${uid}@pipx.trader`);
+      mt5Status = "ready";
     } catch (mt5Error) {
+      mt5Status = "failed";
       console.error(`MT5 provisioning failed for ${uid}:`, mt5Error);
     }
 
-    const userUpdate: any = { currentTournamentId: tournamentId };
+    const userUpdate: any = { currentTournamentId: tournamentId, mt5Status };
 
     if (mt5Account) {
       userUpdate.mt5Account = {
