@@ -1,12 +1,10 @@
-import MetaApi from "metaapi.cloud-sdk/esm-node";
-
 const token = process.env.METAAPI_TOKEN as string;
 const profileId = process.env.METAAPI_PROFILE_ID as string;
 
-const api = new MetaApi(token) as any;
-
 export async function createMT5AccountForUser(uid: string, email: string) {
-  // Step 1: Create a real MT5 demo account with IC Markets
+  const { default: MetaApi } = await import("metaapi.cloud-sdk/esm-node");
+  const api = new (MetaApi as any)(token);
+
   const demoAccount = await api.metatraderDemoAccountApi.createMT5DemoAccount(
     profileId,
     {
@@ -17,20 +15,17 @@ export async function createMT5AccountForUser(uid: string, email: string) {
     }
   );
 
-  // Step 2: Register this account with MetaApi for monitoring
-  // (using the investor password so we only get read-only access)
   const account = await api.metatraderAccountApi.createAccount({
     name: `PipX-${uid}`,
     type: "cloud-g2",
     login: demoAccount.login,
-    password: demoAccount.investorPassword, // read-only monitoring
+    password: demoAccount.investorPassword,
     server: "ICMarketsSC-Demo",
     provisioningProfileId: profileId,
     application: "MetaApi",
     magic: 0,
   });
 
-  // Step 3: Deploy the account so MetaApi starts syncing with the broker
   await account.deploy();
 
   return {

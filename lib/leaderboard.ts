@@ -1,11 +1,11 @@
-import * as MetaApiModule from "metaapi.cloud-sdk";
-const MetaApi = (MetaApiModule as any).default ?? MetaApiModule;
 import { adminDb } from "@/lib/firebaseAdmin";
 
 const token = process.env.METAAPI_TOKEN as string;
-const api = new MetaApi(token) as any;
 
 export async function getTournamentLeaderboard(tournamentId: string) {
+  const { default: MetaApi } = await import("metaapi.cloud-sdk/esm-node");
+  const api = new (MetaApi as any)(token);
+
   const snapshot = await adminDb.ref(`tournaments/${tournamentId}/participants`).once("value");
   const participants = snapshot.val() || {};
 
@@ -15,7 +15,6 @@ export async function getTournamentLeaderboard(tournamentId: string) {
 
       try {
         if (data.mt5Login) {
-          // Find the MetaApi account by login
           const accounts = await api.metatraderAccountApi.getAccounts({
             query: data.mt5Login,
           });
@@ -48,9 +47,7 @@ export async function getTournamentLeaderboard(tournamentId: string) {
     })
   );
 
-  // Sort by P&L percent, descending (best trader first)
   results.sort((a, b) => b.pnlPercent - a.pnlPercent);
 
-  // Assign ranks
   return results.map((r, index) => ({ ...r, rank: index + 1 }));
 }
