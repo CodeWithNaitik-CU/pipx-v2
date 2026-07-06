@@ -9,6 +9,7 @@ import Link from "next/link";
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [payingLoading, setPayingLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -28,8 +29,6 @@ export default function DashboardPage() {
     await signOut(auth);
     router.push("/login");
   };
-
-  const [payingLoading, setPayingLoading] = useState(false);
 
   const handleJoinTournament = async () => {
     if (!user) return;
@@ -52,6 +51,33 @@ export default function DashboardPage() {
     } catch (error) {
       console.error(error);
       alert("Something went wrong. Please try again.");
+    } finally {
+      setPayingLoading(false);
+    }
+  };
+
+  const handleDevJoinFree = async () => {
+    if (!user) return;
+    setPayingLoading(true);
+
+    try {
+      const res = await fetch("/api/dev-join-tournament", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid, email: user.email }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Joined tournament for free (dev mode)!");
+        window.location.reload();
+      } else {
+        alert(data.error || "Failed to join.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong.");
     } finally {
       setPayingLoading(false);
     }
@@ -102,6 +128,14 @@ export default function DashboardPage() {
             className="bg-[#0066FF] hover:bg-[#0052CC] disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-full transition"
           >
             {payingLoading ? "Redirecting..." : "Join Tournament"}
+          </button>
+
+          <button
+            onClick={handleDevJoinFree}
+            disabled={payingLoading}
+            className="mt-3 block mx-auto text-xs text-gray-600 hover:text-gray-400 transition"
+          >
+            [Dev only] Join free — skip payment
           </button>
         </div>
 
