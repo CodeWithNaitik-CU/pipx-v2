@@ -1,5 +1,4 @@
-import * as MetaApiModule from "metaapi.cloud-sdk";
-const MetaApi = (MetaApiModule as any).default ?? MetaApiModule;
+import MetaApi from "metaapi.cloud-sdk";
 
 const token = process.env.METAAPI_TOKEN as string;
 const profileId = process.env.METAAPI_PROFILE_ID as string;
