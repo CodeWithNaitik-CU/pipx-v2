@@ -1,4 +1,5 @@
-import MetaApi from "metaapi.cloud-sdk";
+import * as MetaApiModule from "metaapi.cloud-sdk";
+const MetaApi = (MetaApiModule as any).default ?? MetaApiModule;
 import { adminDb } from "@/lib/firebaseAdmin";
 
 const token = process.env.METAAPI_TOKEN as string;
