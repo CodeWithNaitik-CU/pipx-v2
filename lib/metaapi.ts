@@ -2,7 +2,7 @@ const token = process.env.METAAPI_TOKEN as string;
 const profileId = process.env.METAAPI_PROFILE_ID as string;
 
 export async function createMT5AccountForUser(uid: string, email: string) {
-  const { default: MetaApi } = await import("metaapi.cloud-sdk/esm-node");
+  const { default: MetaApi } = await import("metaapi.cloud-sdk");
   const api = new (MetaApi as any)(token);
 
   // Step 1: Create a real MT5 demo account with IC Markets
