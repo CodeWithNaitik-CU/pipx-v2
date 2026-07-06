@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -103,6 +104,13 @@ export default function DashboardPage() {
             {payingLoading ? "Redirecting..." : "Join Tournament"}
           </button>
         </div>
+
+        <Link
+          href="/leaderboard"
+          className="block mt-4 text-center text-sm text-gray-400 hover:text-white transition"
+        >
+          View live leaderboard →
+        </Link>
       </div>
     </main>
   );

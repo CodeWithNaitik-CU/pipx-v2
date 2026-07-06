@@ -3,7 +3,7 @@ import MetaApi from "metaapi.cloud-sdk";
 const token = process.env.METAAPI_TOKEN as string;
 const profileId = process.env.METAAPI_PROFILE_ID as string;
 
-const api = new MetaApi(token);
+const api = new MetaApi(token) as any;
 
 export async function createMT5AccountForUser(uid: string, email: string) {
   // Step 1: Create a real MT5 demo account with IC Markets
@@ -21,7 +21,7 @@ export async function createMT5AccountForUser(uid: string, email: string) {
   // (using the investor password so we only get read-only access)
   const account = await api.metatraderAccountApi.createAccount({
     name: `PipX-${uid}`,
-    type: "cloud",
+    type: "cloud-g2",
     login: demoAccount.login,
     password: demoAccount.investorPassword, // read-only monitoring
     server: "ICMarketsSC-Demo",
