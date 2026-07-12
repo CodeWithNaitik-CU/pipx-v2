@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [payingLoading, setPayingLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [tournament, setTournament] = useState<any>(null);
+  const [tournamentStatus, setTournamentStatus] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -46,6 +47,17 @@ export default function DashboardPage() {
 
     return () => unsubscribe();
   }, [profile?.currentTournamentId, user]);
+
+  useEffect(() => {
+    if (!profile?.currentTournamentId) return;
+
+    const statusRef = ref(db, `tournaments/${profile.currentTournamentId}/status`);
+    const unsubscribe = onValue(statusRef, (snapshot) => {
+      setTournamentStatus(snapshot.val());
+    });
+
+    return () => unsubscribe();
+  }, [profile?.currentTournamentId]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -152,7 +164,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {profile?.currentTournamentId ? (
+        {profile?.currentTournamentId && tournamentStatus === "active" ? (
           <>
             {/* Equity hero card */}
             <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 mb-6">
@@ -217,7 +229,7 @@ export default function DashboardPage() {
         ) : (
           <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-10 text-center">
             <div className="inline-flex items-center gap-2 font-mono-num text-xs text-gray-500 border border-gray-700 rounded-full px-4 py-1.5 mb-6">
-              No active tournament
+              {tournamentStatus === "completed" ? "Tournament ended" : "No active tournament"}
             </div>
             <h3 className="font-display text-2xl font-bold mb-2">
               Ready to prove your skill?
