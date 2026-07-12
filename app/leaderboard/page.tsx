@@ -8,7 +8,6 @@ import Link from "next/link";
 
 interface LeaderboardEntry {
   uid: string;
-  mt5Login: string | null;
   startingBalance: number;
   currentEquity: number;
   pnlPercent: number;
@@ -49,9 +48,8 @@ export default function LeaderboardPage() {
     }
   };
 
-  const maskLogin = (login: string | null) => {
-    if (!login) return "—";
-    return `MT5-${login.slice(-4)}`;
+  const maskUid = (uid: string) => {
+    return `Trader-${uid.slice(-4)}`;
   };
 
   return (
@@ -106,7 +104,7 @@ export default function LeaderboardPage() {
                     #{entry.rank}
                   </span>
                   <span className="font-mono-num text-sm text-gray-200">
-                    {maskLogin(entry.mt5Login)}
+                    {maskUid(entry.uid)}
                     {isMe && <span className="ml-2 text-xs text-[#0066FF]">(You)</span>}
                   </span>
                   <span className="font-mono-num text-sm text-right text-gray-300">
