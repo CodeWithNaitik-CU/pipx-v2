@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { getCurrentTournamentId, getCurrentWeekRange } from "@/lib/tournament";
-import { createMT5AccountForUser } from "@/lib/metaapi";
 
 // Only these emails can use this free bypass — add your own test emails here
 const ALLOWED_TEST_EMAILS = ["test@gmail.com", "test2@pipx.com", "test3@pipx.com"];
@@ -38,39 +37,16 @@ export async function POST(req: NextRequest) {
 
     await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).update({
       joinedAt: Date.now(),
-      mt5Login: null,
       startingBalance: 1000,
       currentEquity: 1000,
       rank: null,
     });
 
-    let mt5Account;
-    let mt5Status = "pending";
-    try {
-      mt5Account = await createMT5AccountForUser(uid, `${uid}@pipx.trader`);
-      mt5Status = "ready";
-    } catch (mt5Error) {
-      mt5Status = "failed";
-      console.error(`MT5 provisioning failed for ${uid}:`, mt5Error);
-    }
+    await adminDb.ref(`users/${uid}`).update({
+      currentTournamentId: tournamentId,
+    });
 
-    const userUpdate: any = { currentTournamentId: tournamentId, mt5Status };
-
-    if (mt5Account) {
-      userUpdate.mt5Account = {
-        login: mt5Account.login,
-        investorPassword: mt5Account.investorPassword,
-        server: mt5Account.server,
-      };
-
-      await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).update({
-        mt5Login: mt5Account.login,
-      });
-    }
-
-    await adminDb.ref(`users/${uid}`).update(userUpdate);
-
-    return NextResponse.json({ success: true, tournamentId, mt5Account });
+    return NextResponse.json({ success: true, tournamentId });
   } catch (error) {
     console.error("Dev join error:", error);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

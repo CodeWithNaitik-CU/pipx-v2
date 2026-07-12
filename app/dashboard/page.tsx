@@ -12,7 +12,6 @@ export default function DashboardPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [payingLoading, setPayingLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
-  const [retryLoading, setRetryLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -91,32 +90,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleRetryMT5 = async () => {
-    if (!user) return;
-    setRetryLoading(true);
-
-    try {
-      const res = await fetch("/api/retry-mt5", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        alert("MT5 account created successfully!");
-      } else {
-        alert(data.error || "Retry failed. Please try again shortly.");
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Something went wrong.");
-    } finally {
-      setRetryLoading(false);
-    }
-  };
-
   if (checkingAuth) {
     return (
       <main className="min-h-screen bg-[#0A0E1A] flex items-center justify-center">
@@ -146,43 +119,23 @@ export default function DashboardPage() {
           Welcome, {user?.email}
         </h2>
         <p className="text-gray-400 mb-8">
-          Your PipX dashboard is under construction. Tournaments, leaderboard, and MT5 stats will appear here.
+          Your PipX dashboard. Trade live prices with your virtual balance and climb the leaderboard.
         </p>
 
-        {profile?.currentTournamentId && profile?.mt5Status === "failed" ? (
-          <div className="bg-[#10151D] border border-[#FF4757]/30 rounded-2xl p-8 text-center">
-            <h3 className="font-display text-xl font-bold mb-2 text-[#FF4757]">
-              MT5 setup incomplete
-            </h3>
-            <p className="text-gray-400 text-sm mb-6">
-              Your payment was received, but we couldn't finish setting up your MT5 account.
-              Tap below to retry — no additional payment needed.
-            </p>
-            <button
-              onClick={handleRetryMT5}
-              disabled={retryLoading}
-              className="bg-[#FF4757] hover:bg-[#E63E4D] disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-full transition"
-            >
-              {retryLoading ? "Retrying..." : "Retry MT5 Setup"}
-            </button>
-          </div>
-        ) : profile?.currentTournamentId && profile?.mt5Status === "pending" ? (
-          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 text-center">
-            <h3 className="font-display text-xl font-bold mb-2">
-              Setting up your MT5 account...
-            </h3>
-            <p className="text-gray-400 text-sm">
-              This usually takes under a minute. Refresh the page shortly.
-            </p>
-          </div>
-        ) : profile?.currentTournamentId && profile?.mt5Status === "ready" ? (
+        {profile?.currentTournamentId ? (
           <div className="bg-[#10151D] border border-[#16E39B]/30 rounded-2xl p-8 text-center">
             <h3 className="font-display text-xl font-bold mb-2 text-[#16E39B]">
               You're in this week's tournament
             </h3>
-            <p className="text-gray-400 text-sm">
-              Your MT5 account is ready. Log in with your credentials and start trading.
+            <p className="text-gray-400 text-sm mb-6">
+              Start trading now with your $1,000 virtual balance.
             </p>
+            <Link
+              href="/trade"
+              className="bg-[#16E39B] hover:bg-[#12C588] text-black font-semibold px-8 py-3 rounded-full transition inline-block"
+            >
+              Start Trading
+            </Link>
           </div>
         ) : (
           <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 text-center">
@@ -190,7 +143,7 @@ export default function DashboardPage() {
               No active tournament
             </h3>
             <p className="text-gray-400 text-sm mb-6">
-              Join this week's tournament to get your MT5 account and start trading.
+              Join this week's tournament to get your virtual balance and start trading.
             </p>
             <button
               onClick={handleJoinTournament}
