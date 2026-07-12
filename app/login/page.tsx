@@ -37,25 +37,28 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0A0E1A] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen bg-[#0A0E14] flex items-center justify-center px-4 font-sans relative overflow-hidden">
+      {/* Ambient glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#0066FF]/10 blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="w-full max-w-md relative">
         {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white tracking-tight">
+        <Link href="/" className="block text-center mb-8">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-white">
             Pip<span className="text-[#0066FF]">X</span>
           </h1>
-          <p className="text-gray-400 mt-2 text-sm">
+          <p className="text-gray-500 mt-2 text-sm">
             Welcome back, trader
           </p>
-        </div>
+        </Link>
 
         {/* Card */}
-        <div className="bg-[#121826] border border-gray-800 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white mb-6">Log in to your account</h2>
+        <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 shadow-2xl shadow-black/40">
+          <h2 className="font-display text-xl font-bold text-white mb-6">Log in to your account</h2>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">
                 Email
               </label>
               <input
@@ -64,13 +67,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 bg-[#0A0E1A] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0066FF] focus:border-transparent transition"
+                className="w-full px-4 py-2.5 bg-[#0A0E14] border border-[#1D2530] rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#0066FF] focus:border-transparent transition"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-300">
+                <label className="block text-sm font-medium text-gray-400">
                   Password
                 </label>
                 <Link href="/forgot-password" className="text-xs text-[#0066FF] hover:text-[#3385FF]">
@@ -83,13 +86,13 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 bg-[#0A0E1A] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#0066FF] focus:border-transparent transition"
+                className="w-full px-4 py-2.5 bg-[#0A0E14] border border-[#1D2530] rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#0066FF] focus:border-transparent transition"
               />
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2.5">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div className="bg-[#FF4757]/10 border border-[#FF4757]/30 rounded-lg px-4 py-2.5">
+                <p className="text-[#FF4757] text-sm">{error}</p>
               </div>
             )}
 
@@ -109,13 +112,24 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-gray-400 text-sm mt-6">
+          <p className="text-center text-gray-500 text-sm mt-6">
             Don't have an account?{" "}
             <Link href="/signup" className="text-[#0066FF] hover:text-[#3385FF] font-medium">
               Sign up
             </Link>
           </p>
         </div>
+
+        <p className="text-center text-gray-600 text-xs mt-6">
+          By logging in, you agree to PipX's{" "}
+          <Link href="/terms" className="text-gray-500 hover:text-gray-300 underline">
+            Terms & Conditions
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="text-gray-500 hover:text-gray-300 underline">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </main>
   );
