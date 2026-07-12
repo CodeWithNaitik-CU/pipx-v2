@@ -41,6 +41,7 @@ export default function TradePage() {
   const [placing, setPlacing] = useState(false);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [equity, setEquity] = useState<number | null>(null);
+  const [livePrices, setLivePrices] = useState<Record<string, number | null>>({});
   const router = useRouter();
 
   useEffect(() => {
@@ -64,15 +65,42 @@ export default function TradePage() {
         const res = await fetch("/api/prices");
         const data = await res.json();
         setPrices(data);
+        // Snap the visual price to the real fetched price
+        setLivePrices(data);
       } catch (error) {
         console.error("Failed to fetch prices:", error);
       }
     };
 
     fetchPrices();
-    const interval = setInterval(fetchPrices, 10000);
+    const interval = setInterval(fetchPrices, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  // Simulate live tick movement between real price fetches
+  useEffect(() => {
+    const jitterInterval = setInterval(() => {
+      setLivePrices((prev) => {
+        const next: Record<string, number | null> = {};
+        for (const symbol of SYMBOLS) {
+          const basePrice = prices[symbol];
+          const current = prev[symbol];
+          if (!basePrice || !current) {
+            next[symbol] = basePrice;
+            continue;
+          }
+          const move = (Math.random() - 0.5) * 2 * basePrice * 0.00015;
+          let updated = current + move;
+          const band = basePrice * 0.0008;
+          updated = Math.max(basePrice - band, Math.min(basePrice + band, updated));
+          next[symbol] = updated;
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(jitterInterval);
+  }, [prices]);
 
   useEffect(() => {
     if (!profile?.currentTournamentId || !user) return;
@@ -168,14 +196,14 @@ export default function TradePage() {
   };
 
   const getLiveUnrealizedPnl = (p: Position) => {
-    const currentPrice = prices[p.symbol];
+    const currentPrice = livePrices[p.symbol];
     if (!currentPrice) return 0;
     const priceDiff =
       p.direction === "buy" ? currentPrice - p.entryPrice : p.entryPrice - currentPrice;
     return p.lots * p.contractSize * priceDiff;
   };
 
-  const currentPrice = prices[selectedSymbol];
+  const currentPrice = livePrices[selectedSymbol];
   const marginPreview =
     currentPrice && lots
       ? (parseFloat(lots) * CONTRACT_SIZE[selectedSymbol] * currentPrice) / 100
@@ -229,7 +257,7 @@ export default function TradePage() {
             >
               <p className="text-xs text-gray-500 mb-1">{sym}</p>
               <p className="font-mono-num text-lg font-bold">
-                {prices[sym] ? `$${prices[sym]!.toLocaleString()}` : "—"}
+                {livePrices[sym] ? `$${livePrices[sym]!.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
               </p>
             </button>
           ))}
