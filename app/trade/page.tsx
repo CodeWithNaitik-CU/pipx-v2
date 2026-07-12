@@ -65,17 +65,39 @@ export default function TradePage() {
         const res = await fetch("/api/prices");
         const data = await res.json();
         setPrices(data);
-        // Snap the visual price to the real fetched price
         setLivePrices(data);
       } catch (error) {
         console.error("Failed to fetch prices:", error);
       }
     };
 
+    const checkSLTP = async () => {
+      if (!user || !profile?.currentTournamentId) return;
+      try {
+        await fetch("/api/trade/check-sltp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: user.uid,
+            tournamentId: profile.currentTournamentId,
+          }),
+        });
+      } catch (error) {
+        console.error("SL/TP check failed:", error);
+      }
+    };
+
     fetchPrices();
-    const interval = setInterval(fetchPrices, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    checkSLTP();
+
+    const priceInterval = setInterval(fetchPrices, 15000);
+    const sltpInterval = setInterval(checkSLTP, 15000);
+
+    return () => {
+      clearInterval(priceInterval);
+      clearInterval(sltpInterval);
+    };
+  }, [user, profile?.currentTournamentId]);
 
   // Simulate live tick movement between real price fetches
   useEffect(() => {
