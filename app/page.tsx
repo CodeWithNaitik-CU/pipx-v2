@@ -154,7 +154,15 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-[#1D2530] px-6 py-8 text-center text-gray-500 text-sm">
-        © 2026 PipX. All rights reserved.
+        <p className="mb-2">© 2026 PipX. All rights reserved.</p>
+        <div className="flex items-center justify-center gap-4 text-xs">
+          <Link href="/terms" className="hover:text-gray-300 transition">
+            Terms & Conditions
+          </Link>
+          <Link href="/privacy" className="hover:text-gray-300 transition">
+            Privacy Policy
+          </Link>
+        </div>
       </footer>
     </main>
   );
