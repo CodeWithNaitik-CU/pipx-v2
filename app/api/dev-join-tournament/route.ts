@@ -7,7 +7,7 @@ const ALLOWED_TEST_EMAILS = ["test@gmail.com", "test2@pipx.com", "realtest@gmail
 
 export async function POST(req: NextRequest) {
   try {
-    const { uid, email } = await req.json();
+    const { uid, email, devSecret } = await req.json();
 
     if (!uid || !email) {
       return NextResponse.json({ error: "Missing user info" }, { status: 400 });
@@ -15,6 +15,10 @@ export async function POST(req: NextRequest) {
 
     if (!ALLOWED_TEST_EMAILS.includes(email)) {
       return NextResponse.json({ error: "Not authorized for free entry" }, { status: 403 });
+    }
+
+    if (devSecret !== process.env.DEV_BYPASS_SECRET) {
+      return NextResponse.json({ error: "Invalid dev secret" }, { status: 403 });
     }
 
     const tournamentId = getCurrentTournamentId();

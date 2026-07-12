@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [payingLoading, setPayingLoading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [tournament, setTournament] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -31,6 +32,20 @@ export default function DashboardPage() {
 
     return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    if (!profile?.currentTournamentId || !user) return;
+
+    const participantRef = ref(
+      db,
+      `tournaments/${profile.currentTournamentId}/participants/${user.uid}`
+    );
+    const unsubscribe = onValue(participantRef, (snapshot) => {
+      setTournament(snapshot.val());
+    });
+
+    return () => unsubscribe();
+  }, [profile?.currentTournamentId, user]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -71,7 +86,11 @@ export default function DashboardPage() {
       const res = await fetch("/api/dev-join-tournament", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid, email: user.email }),
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          devSecret: process.env.NEXT_PUBLIC_DEV_BYPASS_SECRET,
+        }),
       });
 
       const data = await res.json();
@@ -92,63 +111,124 @@ export default function DashboardPage() {
 
   if (checkingAuth) {
     return (
-      <main className="min-h-screen bg-[#0A0E1A] flex items-center justify-center">
+      <main className="min-h-screen bg-[#0A0E14] flex items-center justify-center">
         <span className="w-8 h-8 border-2 border-gray-700 border-t-[#0066FF] rounded-full animate-spin" />
       </main>
     );
   }
 
+  const equity = tournament?.currentEquity ?? null;
+  const startingBalance = tournament?.startingBalance ?? 1000;
+  const pnl = equity !== null ? equity - startingBalance : 0;
+  const pnlPercent = equity !== null ? (pnl / startingBalance) * 100 : 0;
+  const isProfit = pnl >= 0;
+
   return (
-    <main className="min-h-screen bg-[#0A0E1A]">
-      {/* Top Nav */}
-      <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">
+    <main className="min-h-screen bg-[#0A0E14] text-[#F5F7FA] font-sans">
+      {/* Nav */}
+      <nav className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto">
+        <h1 className="font-display text-2xl font-bold tracking-tight">
           Pip<span className="text-[#0066FF]">X</span>
         </h1>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-gray-400 hover:text-white transition"
-        >
-          Log out
-        </button>
+        <div className="flex items-center gap-5">
+          <span className="text-sm text-gray-500 hidden sm:inline">{user?.email}</span>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-400 hover:text-white transition"
+          >
+            Log out
+          </button>
+        </div>
       </nav>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <h2 className="text-2xl font-semibold text-white mb-2">
-          Welcome, {user?.email}
-        </h2>
-        <p className="text-gray-400 mb-8">
-          Your PipX dashboard. Trade live prices with your virtual balance and climb the leaderboard.
-        </p>
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Greeting */}
+        <div className="mb-8">
+          <h2 className="font-display text-3xl font-bold mb-1">
+            Welcome back{profile?.username ? `, ${profile.username}` : ""}
+          </h2>
+          <p className="text-gray-500 text-sm">
+            Trade live markets, climb the leaderboard, win real prizes.
+          </p>
+        </div>
 
         {profile?.currentTournamentId ? (
-          <div className="bg-[#10151D] border border-[#16E39B]/30 rounded-2xl p-8 text-center">
-            <h3 className="font-display text-xl font-bold mb-2 text-[#16E39B]">
-              You're in this week's tournament
-            </h3>
-            <p className="text-gray-400 text-sm mb-6">
-              Start trading now with your $1,000 virtual balance.
-            </p>
-            <Link
-              href="/trade"
-              className="bg-[#16E39B] hover:bg-[#12C588] text-black font-semibold px-8 py-3 rounded-full transition inline-block"
-            >
-              Start Trading
-            </Link>
-          </div>
+          <>
+            {/* Equity hero card */}
+            <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 mb-6">
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div>
+                  <p className="font-mono-num text-xs text-[#16E39B] mb-3 tracking-widest flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#16E39B] animate-pulse" />
+                    ACTIVE TOURNAMENT
+                  </p>
+                  <p className="text-gray-500 text-sm mb-1">Current Equity</p>
+                  <p className="font-mono-num text-5xl font-bold">
+                    {equity !== null ? `$${equity.toFixed(2)}` : "..."}
+                  </p>
+                  {equity !== null && (
+                    <p
+                      className={`font-mono-num text-sm font-semibold mt-2 ${
+                        isProfit ? "text-[#16E39B]" : "text-[#FF4757]"
+                      }`}
+                    >
+                      {isProfit ? "+" : ""}${pnl.toFixed(2)} ({isProfit ? "+" : ""}
+                      {pnlPercent.toFixed(2)}%)
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Link
+                    href="/trade"
+                    className="bg-[#16E39B] hover:bg-[#12C588] text-black font-semibold px-6 py-3 rounded-full transition text-center"
+                  >
+                    Start Trading
+                  </Link>
+                  <Link
+                    href="/leaderboard"
+                    className="border border-gray-700 hover:border-gray-500 font-semibold px-6 py-3 rounded-full transition text-center"
+                  >
+                    Leaderboard
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick stats row */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-[#10151D] border border-[#1D2530] rounded-xl p-5">
+                <p className="text-gray-500 text-xs mb-1">Starting Balance</p>
+                <p className="font-mono-num text-lg font-bold">${startingBalance.toFixed(2)}</p>
+              </div>
+              <div className="bg-[#10151D] border border-[#1D2530] rounded-xl p-5">
+                <p className="text-gray-500 text-xs mb-1">Rank</p>
+                <p className="font-mono-num text-lg font-bold">
+                  {tournament?.rank ? `#${tournament.rank}` : "—"}
+                </p>
+              </div>
+              <div className="bg-[#10151D] border border-[#1D2530] rounded-xl p-5 col-span-2 md:col-span-1">
+                <p className="text-gray-500 text-xs mb-1">Tournament</p>
+                <p className="font-mono-num text-sm font-bold truncate">
+                  {profile.currentTournamentId}
+                </p>
+              </div>
+            </div>
+          </>
         ) : (
-          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-8 text-center">
-            <h3 className="font-display text-xl font-bold mb-2">
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-10 text-center">
+            <div className="inline-flex items-center gap-2 font-mono-num text-xs text-gray-500 border border-gray-700 rounded-full px-4 py-1.5 mb-6">
               No active tournament
+            </div>
+            <h3 className="font-display text-2xl font-bold mb-2">
+              Ready to prove your skill?
             </h3>
-            <p className="text-gray-400 text-sm mb-6">
-              Join this week's tournament to get your virtual balance and start trading.
+            <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">
+              Join this week's tournament to get your $1,000 virtual balance and start trading live markets.
             </p>
             <button
               onClick={handleJoinTournament}
               disabled={payingLoading}
-              className="bg-[#0066FF] hover:bg-[#0052CC] disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold px-8 py-3 rounded-full transition"
+              className="bg-[#0066FF] hover:bg-[#0052CC] disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold px-8 py-3.5 rounded-full transition"
             >
               {payingLoading ? "Redirecting..." : "Join Tournament"}
             </button>
@@ -156,19 +236,12 @@ export default function DashboardPage() {
             <button
               onClick={handleDevJoinFree}
               disabled={payingLoading}
-              className="mt-3 block mx-auto text-xs text-gray-600 hover:text-gray-400 transition"
+              className="mt-4 block mx-auto text-xs text-gray-700 hover:text-gray-500 transition"
             >
               [Dev only] Join free — skip payment
             </button>
           </div>
         )}
-
-        <Link
-          href="/leaderboard"
-          className="block mt-4 text-center text-sm text-gray-400 hover:text-white transition"
-        >
-          View live leaderboard →
-        </Link>
       </div>
     </main>
   );
