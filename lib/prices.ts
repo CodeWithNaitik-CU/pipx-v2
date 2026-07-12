@@ -9,24 +9,24 @@ export async function getXAUUSDPrice(): Promise<number> {
   return data.price;
 }
 
-export async function getCryptoPrice(symbol: "BTCUSDT" | "ETHUSDT"): Promise<number> {
-  const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, {
-    cache: "no-store",
-  });
+export async function getCryptoPrices(): Promise<{ btc: number; eth: number }> {
+  const res = await fetch(
+    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",
+    { cache: "no-store" }
+  );
   const data = await res.json();
-  return parseFloat(data.price);
+  return {
+    btc: data.bitcoin.usd,
+    eth: data.ethereum.usd,
+  };
 }
 
 export async function getAllPrices(): Promise<Record<string, number>> {
-  const [xau, btc, eth] = await Promise.all([
-    getXAUUSDPrice(),
-    getCryptoPrice("BTCUSDT"),
-    getCryptoPrice("ETHUSDT"),
-  ]);
+  const [xau, crypto] = await Promise.all([getXAUUSDPrice(), getCryptoPrices()]);
 
   return {
     XAUUSD: xau,
-    BTCUSD: btc,
-    ETHUSD: eth,
+    BTCUSD: crypto.btc,
+    ETHUSD: crypto.eth,
   };
 }
