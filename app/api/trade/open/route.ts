@@ -22,6 +22,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid direction" }, { status: 400 });
     }
 
+    const tournamentSnapshot = await adminDb.ref(`tournaments/${tournamentId}`).once("value");
+    const tournamentData = tournamentSnapshot.val();
+
+    if (!tournamentData || tournamentData.status === "completed") {
+      return NextResponse.json({ error: "This tournament has ended" }, { status: 400 });
+    }
+
     const userSnapshot = await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).once("value");
     const participant = userSnapshot.val();
 

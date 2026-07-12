@@ -16,12 +16,18 @@ interface Tournament {
   endDate: number;
 }
 
+interface Winner {
+  uid: string;
+  finalEquity: number;
+  pnlPercent: number;
+  prize: number;
+}
+
 interface AdminUser {
   uid: string;
   email: string;
   username: string;
   currentTournamentId: string | null;
-  hasMT5: boolean;
   createdAt: number;
 }
 
@@ -33,6 +39,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"tournaments" | "users">("tournaments");
+  const [endingId, setEndingId] = useState<string | null>(null);
+  const [winnersModal, setWinnersModal] = useState<Winner[] | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -69,6 +77,34 @@ export default function AdminPage() {
     }
   };
 
+  const handleEndTournament = async (tournamentId: string) => {
+    if (!user?.email) return;
+    if (!confirm(`End tournament "${tournamentId}" and finalize winners? This cannot be undone.`)) return;
+
+    setEndingId(tournamentId);
+    try {
+      const res = await fetch("/api/admin/end-tournament", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, tournamentId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setWinnersModal(Object.values(data.winners));
+        fetchAdminData(user.email);
+      } else {
+        alert(data.error || "Failed to end tournament");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong");
+    } finally {
+      setEndingId(null);
+    }
+  };
+
   const formatDate = (ts: number) => {
     if (!ts) return "—";
     return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -96,11 +132,17 @@ export default function AdminPage() {
     );
   }
 
+  const activeTournaments = tournaments.filter((t) => t.status === "active").length;
+  const completedTournaments = tournaments.filter((t) => t.status === "completed").length;
+  const totalPrizePool = tournaments.reduce((sum, t) => sum + (t.prizePool || 0), 0);
+  const totalParticipants = tournaments.reduce((sum, t) => sum + (t.participantCount || 0), 0);
+
   return (
     <main className="min-h-screen bg-[#0A0E14] text-[#F5F7FA] font-sans">
       <nav className="flex items-center justify-between px-6 py-5 max-w-6xl mx-auto">
         <Link href="/dashboard" className="font-display text-2xl font-bold tracking-tight">
-          Pip<span className="text-[#0066FF]">X</span> <span className="text-gray-500 text-base">Admin</span>
+          Pip<span className="text-[#0066FF]">X</span>{" "}
+          <span className="text-gray-600 text-base font-normal">/ Command Center</span>
         </Link>
         <Link href="/dashboard" className="text-sm text-gray-400 hover:text-white transition">
           ← Back to Dashboard
@@ -108,8 +150,28 @@ export default function AdminPage() {
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* KPI Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6">
+            <p className="text-gray-500 text-xs mb-2 tracking-wide">TOTAL USERS</p>
+            <p className="font-mono-num text-3xl font-bold">{users.length}</p>
+          </div>
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6">
+            <p className="text-gray-500 text-xs mb-2 tracking-wide">ACTIVE TOURNAMENTS</p>
+            <p className="font-mono-num text-3xl font-bold text-[#16E39B]">{activeTournaments}</p>
+          </div>
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6">
+            <p className="text-gray-500 text-xs mb-2 tracking-wide">TOTAL PARTICIPANTS</p>
+            <p className="font-mono-num text-3xl font-bold">{totalParticipants}</p>
+          </div>
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6">
+            <p className="text-gray-500 text-xs mb-2 tracking-wide">TOTAL PRIZE POOL</p>
+            <p className="font-mono-num text-3xl font-bold text-[#FFB800]">${totalPrizePool.toFixed(0)}</p>
+          </div>
+        </div>
+
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-[#1D2530]">
+        <div className="flex gap-2 mb-6 border-b border-[#1D2530]">
           <button
             onClick={() => setTab("tournaments")}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
@@ -134,24 +196,28 @@ export default function AdminPage() {
 
         {tab === "tournaments" && (
           <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_100px_100px_100px_140px] gap-4 px-6 py-3 border-b border-[#1D2530] text-gray-500 text-xs font-mono-num">
+            <div className="grid grid-cols-[1fr_100px_90px_90px_150px_90px] gap-4 px-6 py-3 border-b border-[#1D2530] text-gray-500 text-xs font-mono-num">
               <span>NAME</span>
               <span>STATUS</span>
               <span className="text-right">PLAYERS</span>
               <span className="text-right">POOL</span>
               <span className="text-right">DATES</span>
+              <span className="text-right">ACTION</span>
             </div>
             {tournaments.length === 0 ? (
-              <p className="px-6 py-10 text-center text-gray-500">No tournaments yet.</p>
+              <p className="px-6 py-14 text-center text-gray-500">No tournaments yet.</p>
             ) : (
               tournaments.map((t) => (
                 <div
                   key={t.id}
-                  className="grid grid-cols-[1fr_100px_100px_100px_140px] gap-4 px-6 py-4 border-b border-[#1D2530] last:border-0 items-center text-sm"
+                  className="grid grid-cols-[1fr_100px_90px_90px_150px_90px] gap-4 px-6 py-4 border-b border-[#1D2530] last:border-0 items-center text-sm hover:bg-white/[0.02] transition"
                 >
-                  <span className="text-gray-200">{t.name}</span>
+                  <div>
+                    <p className="text-gray-200 font-medium">{t.name}</p>
+                    <p className="text-gray-600 text-xs font-mono-num">{t.id}</p>
+                  </div>
                   <span
-                    className={`text-xs font-mono-num px-2 py-1 rounded-full w-fit ${
+                    className={`text-xs font-mono-num px-2.5 py-1 rounded-full w-fit ${
                       t.status === "active"
                         ? "bg-[#16E39B]/10 text-[#16E39B]"
                         : "bg-gray-700/30 text-gray-400"
@@ -164,6 +230,19 @@ export default function AdminPage() {
                   <span className="text-right text-xs text-gray-500">
                     {formatDate(t.startDate)} – {formatDate(t.endDate)}
                   </span>
+                  <span className="text-right">
+                    {t.status === "active" ? (
+                      <button
+                        onClick={() => handleEndTournament(t.id)}
+                        disabled={endingId === t.id}
+                        className="text-xs bg-[#FF4757]/10 text-[#FF4757] hover:bg-[#FF4757]/20 px-3 py-1.5 rounded-lg transition font-medium"
+                      >
+                        {endingId === t.id ? "Ending..." : "End"}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-700">—</span>
+                    )}
+                  </span>
                 </div>
               ))
             )}
@@ -172,30 +251,28 @@ export default function AdminPage() {
 
         {tab === "users" && (
           <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_140px_120px_120px] gap-4 px-6 py-3 border-b border-[#1D2530] text-gray-500 text-xs font-mono-num">
+            <div className="grid grid-cols-[1fr_180px_140px] gap-4 px-6 py-3 border-b border-[#1D2530] text-gray-500 text-xs font-mono-num">
               <span>EMAIL</span>
               <span>TOURNAMENT</span>
-              <span>MT5</span>
               <span className="text-right">JOINED</span>
             </div>
             {users.length === 0 ? (
-              <p className="px-6 py-10 text-center text-gray-500">No users yet.</p>
+              <p className="px-6 py-14 text-center text-gray-500">No users yet.</p>
             ) : (
               users.map((u) => (
                 <div
                   key={u.uid}
-                  className="grid grid-cols-[1fr_140px_120px_120px] gap-4 px-6 py-4 border-b border-[#1D2530] last:border-0 items-center text-sm"
+                  className="grid grid-cols-[1fr_180px_140px] gap-4 px-6 py-4 border-b border-[#1D2530] last:border-0 items-center text-sm hover:bg-white/[0.02] transition"
                 >
                   <span className="text-gray-200">{u.email}</span>
-                  <span className="text-xs text-gray-400 font-mono-num">
-                    {u.currentTournamentId || "—"}
-                  </span>
                   <span
-                    className={`text-xs font-mono-num px-2 py-1 rounded-full w-fit ${
-                      u.hasMT5 ? "bg-[#16E39B]/10 text-[#16E39B]" : "bg-gray-700/30 text-gray-400"
+                    className={`text-xs font-mono-num px-2.5 py-1 rounded-full w-fit ${
+                      u.currentTournamentId
+                        ? "bg-[#0066FF]/10 text-[#0066FF]"
+                        : "bg-gray-700/30 text-gray-500"
                     }`}
                   >
-                    {u.hasMT5 ? "Active" : "None"}
+                    {u.currentTournamentId || "Not enrolled"}
                   </span>
                   <span className="text-right text-xs text-gray-500">{formatDate(u.createdAt)}</span>
                 </div>
@@ -204,6 +281,38 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {winnersModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6 max-w-md w-full">
+            <h3 className="font-display text-xl font-bold mb-4">🏆 Tournament Winners</h3>
+            <div className="space-y-2 mb-4">
+              {winnersModal.map((w, i) => (
+                <div
+                  key={w.uid}
+                  className="flex justify-between items-center bg-[#0A0E14] rounded-lg px-4 py-3"
+                >
+                  <span className="text-sm text-gray-300">
+                    #{i + 1} — Trader-{w.uid.slice(-4)}
+                  </span>
+                  <span className="font-mono-num text-sm text-[#FFB800] font-bold">
+                    ${w.prize.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Remember to manually send these crypto payouts to each winner's wallet address.
+            </p>
+            <button
+              onClick={() => setWinnersModal(null)}
+              className="w-full bg-[#0066FF] hover:bg-[#0052CC] text-white font-semibold py-2.5 rounded-lg transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
