@@ -22,8 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Position already closed" }, { status: 400 });
     }
 
-    // Get current live price
-    let closePrice: number;
+    let closePrice: number | null;
     if (position.symbol === "XAUUSD") {
       closePrice = await getXAUUSDPrice();
     } else {
@@ -31,12 +30,13 @@ export async function POST(req: NextRequest) {
       closePrice = position.symbol === "BTCUSD" ? crypto.btc : crypto.eth;
     }
 
-    // Calculate P&L
+    if (!closePrice) {
+      return NextResponse.json({ error: "Live price unavailable right now, please try again" }, { status: 503 });
+    }
+
     const priceDiff =
-      position.direction === "buy"
-        ? closePrice - position.entryPrice
-        : position.entryPrice - closePrice;
-    const pnl = position.size * (priceDiff / position.entryPrice);
+      position.direction === "buy" ? closePrice - position.entryPrice : position.entryPrice - closePrice;
+    const pnl = position.lots * position.contractSize * priceDiff;
 
     await positionRef.update({
       status: "closed",
@@ -45,7 +45,6 @@ export async function POST(req: NextRequest) {
       pnl,
     });
 
-    // Update the participant's equity in the tournament
     const participantRef = adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`);
     const participantSnapshot = await participantRef.once("value");
     const participant = participantSnapshot.val();

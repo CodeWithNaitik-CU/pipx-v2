@@ -10,11 +10,18 @@ import Link from "next/link";
 const SYMBOLS = ["XAUUSD", "BTCUSD", "ETHUSD"] as const;
 type Symbol = (typeof SYMBOLS)[number];
 
+const CONTRACT_SIZE: Record<Symbol, number> = {
+  XAUUSD: 100,
+  BTCUSD: 1,
+  ETHUSD: 1,
+};
+
 interface Position {
   id: string;
   symbol: Symbol;
   direction: "buy" | "sell";
-  size: number;
+  lots: number;
+  contractSize: number;
   entryPrice: number;
   stopLoss: number | null;
   takeProfit: number | null;
@@ -25,10 +32,10 @@ interface Position {
 export default function TradePage() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [prices, setPrices] = useState<Record<string, number | null>>({});
   const [positions, setPositions] = useState<Position[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState<Symbol>("XAUUSD");
-  const [size, setSize] = useState("100");
+  const [lots, setLots] = useState("0.01");
   const [stopLoss, setStopLoss] = useState("");
   const [takeProfit, setTakeProfit] = useState("");
   const [placing, setPlacing] = useState(false);
@@ -63,7 +70,7 @@ export default function TradePage() {
     };
 
     fetchPrices();
-    const interval = setInterval(fetchPrices, 5000);
+    const interval = setInterval(fetchPrices, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -111,7 +118,7 @@ export default function TradePage() {
           tournamentId: profile.currentTournamentId,
           symbol: selectedSymbol,
           direction,
-          size: parseFloat(size),
+          lots: parseFloat(lots),
           stopLoss: stopLoss ? parseFloat(stopLoss) : null,
           takeProfit: takeProfit ? parseFloat(takeProfit) : null,
         }),
@@ -165,8 +172,14 @@ export default function TradePage() {
     if (!currentPrice) return 0;
     const priceDiff =
       p.direction === "buy" ? currentPrice - p.entryPrice : p.entryPrice - currentPrice;
-    return p.size * (priceDiff / p.entryPrice);
+    return p.lots * p.contractSize * priceDiff;
   };
+
+  const currentPrice = prices[selectedSymbol];
+  const marginPreview =
+    currentPrice && lots
+      ? (parseFloat(lots) * CONTRACT_SIZE[selectedSymbol] * currentPrice) / 100
+      : null;
 
   if (!profile?.currentTournamentId) {
     return (
@@ -193,7 +206,7 @@ export default function TradePage() {
         </Link>
         <div className="flex items-center gap-4">
           <span className="font-mono-num text-sm text-gray-400">
-            Equity: <span className="text-[#16E39B]">${equity?.toFixed(2) || "..."}</span>
+            Equity: <span className="text-[#16E39B]">${equity?.toFixed(2) ?? "..."}</span>
           </span>
           <Link href="/leaderboard" className="text-sm text-gray-400 hover:text-white transition">
             Leaderboard
@@ -216,7 +229,7 @@ export default function TradePage() {
             >
               <p className="text-xs text-gray-500 mb-1">{sym}</p>
               <p className="font-mono-num text-lg font-bold">
-                {prices[sym] ? `$${prices[sym].toLocaleString()}` : "—"}
+                {prices[sym] ? `$${prices[sym]!.toLocaleString()}` : "—"}
               </p>
             </button>
           ))}
@@ -224,16 +237,21 @@ export default function TradePage() {
 
         {/* Trade panel */}
         <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6 mb-6">
-          <h3 className="font-display font-bold mb-4">
-            Trade {selectedSymbol} @ ${prices[selectedSymbol]?.toLocaleString() || "..."}
+          <h3 className="font-display font-bold mb-1">
+            Trade {selectedSymbol} @ {currentPrice ? `$${currentPrice.toLocaleString()}` : "..."}
           </h3>
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <p className="text-xs text-gray-500 mb-4">
+            1 lot = {CONTRACT_SIZE[selectedSymbol]} {selectedSymbol === "XAUUSD" ? "oz" : "unit(s)"} · Leverage 1:100
+          </p>
+          <div className="grid grid-cols-3 gap-4 mb-2">
             <div>
-              <label className="block text-xs text-gray-500 mb-1.5">Size (USD)</label>
+              <label className="block text-xs text-gray-500 mb-1.5">Lots</label>
               <input
                 type="number"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
+                step="0.01"
+                min="0.01"
+                value={lots}
+                onChange={(e) => setLots(e.target.value)}
                 className="w-full px-3 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white text-sm"
               />
             </div>
@@ -258,17 +276,22 @@ export default function TradePage() {
               />
             </div>
           </div>
+          {marginPreview && (
+            <p className="text-xs text-gray-500 mb-4">
+              Margin required: <span className="text-gray-300 font-mono-num">${marginPreview.toFixed(2)}</span>
+            </p>
+          )}
           <div className="flex gap-3">
             <button
               onClick={() => handlePlaceTrade("buy")}
-              disabled={placing}
+              disabled={placing || !currentPrice}
               className="flex-1 bg-[#16E39B] hover:bg-[#12C588] disabled:bg-gray-700 text-black font-bold py-3 rounded-lg transition"
             >
               BUY
             </button>
             <button
               onClick={() => handlePlaceTrade("sell")}
-              disabled={placing}
+              disabled={placing || !currentPrice}
               className="flex-1 bg-[#FF4757] hover:bg-[#E63E4D] disabled:bg-gray-700 text-white font-bold py-3 rounded-lg transition"
             >
               SELL
@@ -302,7 +325,7 @@ export default function TradePage() {
                       </span>
                       <span className="font-mono-num text-sm">{p.symbol}</span>
                       <span className="text-gray-500 text-xs ml-2">
-                        ${p.size} @ ${p.entryPrice.toLocaleString()}
+                        {p.lots} lots @ ${p.entryPrice.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
@@ -343,6 +366,7 @@ export default function TradePage() {
                   <div>
                     <span className="text-xs text-gray-500 mr-2">{p.direction.toUpperCase()}</span>
                     <span className="font-mono-num text-sm">{p.symbol}</span>
+                    <span className="text-gray-500 text-xs ml-2">{p.lots} lots</span>
                   </div>
                   <span
                     className={`font-mono-num text-sm font-semibold ${
