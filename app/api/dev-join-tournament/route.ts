@@ -3,7 +3,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { getCurrentTournamentId, getCurrentWeekRange } from "@/lib/tournament";
 
 // Only these emails can use this free bypass — add your own test emails here
-const ALLOWED_TEST_EMAILS = ["test@gmail.com", "test2@pipx.com", "test3@pipx.com"];
+const ALLOWED_TEST_EMAILS = ["test@gmail.com", "test2@pipx.com", "realtest@gmail.com"];
 
 export async function POST(req: NextRequest) {
   try {
