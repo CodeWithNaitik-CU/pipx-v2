@@ -26,6 +26,17 @@ interface Winner {
   paid: boolean;
 }
 
+interface Payout {
+  tournamentId: string;
+  tournamentName: string;
+  rank: number;
+  uid: string;
+  email: string;
+  walletAddress: string | null;
+  prize: number;
+  paid: boolean;
+}
+
 interface AdminUser {
   uid: string;
   email: string;
@@ -41,7 +52,9 @@ export default function AdminPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"tournaments" | "users">("tournaments");
+  const [tab, setTab] = useState<"tournaments" | "users" | "payouts">("tournaments");
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [endingId, setEndingId] = useState<string | null>(null);
   const [winnersModal, setWinnersModal] = useState<Winner[] | null>(null);
   const router = useRouter();
@@ -63,15 +76,21 @@ export default function AdminPage() {
   const fetchAdminData = async (email: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/overview?email=${encodeURIComponent(email)}`);
-      const data = await res.json();
+      const [overviewRes, payoutsRes] = await Promise.all([
+        fetch(`/api/admin/overview?email=${encodeURIComponent(email)}`),
+        fetch(`/api/admin/payouts?email=${encodeURIComponent(email)}`),
+      ]);
 
-      if (res.status === 403) {
+      const data = await overviewRes.json();
+      const payoutsData = await payoutsRes.json();
+
+      if (overviewRes.status === 403) {
         setAuthorized(false);
       } else {
         setAuthorized(true);
         setTournaments(data.tournaments || []);
         setUsers(data.users || []);
+        setPayouts(payoutsData.payouts || []);
       }
     } catch (error) {
       console.error("Failed to load admin data:", error);
@@ -108,6 +127,25 @@ export default function AdminPage() {
     }
   };
 
+  const handleMarkPaid = async (tournamentId: string, rank: number) => {
+    if (!user?.email) return;
+    setMarkingPaid(`${tournamentId}-${rank}`);
+
+    try {
+      await fetch("/api/admin/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, tournamentId, rank }),
+      });
+      fetchAdminData(user.email);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update payout status");
+    } finally {
+      setMarkingPaid(null);
+    }
+  };
+
   const formatDate = (ts: number) => {
     if (!ts) return "—";
     return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -136,7 +174,6 @@ export default function AdminPage() {
   }
 
   const activeTournaments = tournaments.filter((t) => t.status === "active").length;
-  const completedTournaments = tournaments.filter((t) => t.status === "completed").length;
   const totalPrizePool = tournaments.reduce((sum, t) => sum + (t.prizePool || 0), 0);
   const totalParticipants = tournaments.reduce((sum, t) => sum + (t.participantCount || 0), 0);
 
@@ -194,6 +231,16 @@ export default function AdminPage() {
             }`}
           >
             Users ({users.length})
+          </button>
+          <button
+            onClick={() => setTab("payouts")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition ${
+              tab === "payouts"
+                ? "border-[#0066FF] text-white"
+                : "border-transparent text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            Payouts ({payouts.filter((p) => !p.paid).length} pending)
           </button>
         </div>
 
@@ -278,6 +325,54 @@ export default function AdminPage() {
                     {u.currentTournamentId || "Not enrolled"}
                   </span>
                   <span className="text-right text-xs text-gray-500">{formatDate(u.createdAt)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "payouts" && (
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl overflow-hidden">
+            {payouts.length === 0 ? (
+              <p className="px-6 py-14 text-center text-gray-500">No payouts yet.</p>
+            ) : (
+              payouts.map((p) => (
+                <div
+                  key={`${p.tournamentId}-${p.rank}`}
+                  className={`px-6 py-4 border-b border-[#1D2530] last:border-0 ${
+                    p.paid ? "opacity-50" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-3">
+                      <span className="font-display font-bold text-sm">#{p.rank}</span>
+                      <span className="text-sm text-gray-300">{p.email}</span>
+                      <span className="text-xs text-gray-600 font-mono-num">{p.tournamentId}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono-num text-sm text-[#FFB800] font-bold">
+                        ${p.prize.toFixed(2)}
+                      </span>
+                      {p.paid ? (
+                        <span className="text-xs bg-[#16E39B]/10 text-[#16E39B] px-2.5 py-1 rounded-full">
+                          Paid
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleMarkPaid(p.tournamentId, p.rank)}
+                          disabled={markingPaid === `${p.tournamentId}-${p.rank}`}
+                          className="text-xs bg-[#0066FF]/10 text-[#0066FF] hover:bg-[#0066FF]/20 px-3 py-1 rounded-full transition"
+                        >
+                          {markingPaid === `${p.tournamentId}-${p.rank}` ? "..." : "Mark Paid"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {p.walletAddress ? (
+                    <p className="font-mono-num text-xs text-gray-500 break-all">{p.walletAddress}</p>
+                  ) : (
+                    <p className="text-xs text-[#FF4757]">⚠ No wallet address on file</p>
+                  )}
                 </div>
               ))
             )}
