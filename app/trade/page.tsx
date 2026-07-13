@@ -42,6 +42,7 @@ export default function TradePage() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [equity, setEquity] = useState<number | null>(null);
   const [livePrices, setLivePrices] = useState<Record<string, number | null>>({});
+  const [priceDirection, setPriceDirection] = useState<Record<string, "up" | "down" | null>>({});
   const router = useRouter();
 
   useEffect(() => {
@@ -104,11 +105,13 @@ export default function TradePage() {
     const jitterInterval = setInterval(() => {
       setLivePrices((prev) => {
         const next: Record<string, number | null> = {};
+        const directions: Record<string, "up" | "down" | null> = {};
         for (const symbol of SYMBOLS) {
           const basePrice = prices[symbol];
           const current = prev[symbol];
           if (!basePrice || !current) {
             next[symbol] = basePrice;
+            directions[symbol] = null;
             continue;
           }
           const move = (Math.random() - 0.5) * 2 * basePrice * 0.00015;
@@ -116,7 +119,9 @@ export default function TradePage() {
           const band = basePrice * 0.0008;
           updated = Math.max(basePrice - band, Math.min(basePrice + band, updated));
           next[symbol] = updated;
+          directions[symbol] = move >= 0 ? "up" : "down";
         }
+        setPriceDirection(directions);
         return next;
       });
     }, 1000);
@@ -267,22 +272,42 @@ export default function TradePage() {
       <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Price tickers */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {SYMBOLS.map((sym) => (
-            <button
-              key={sym}
-              onClick={() => setSelectedSymbol(sym)}
-              className={`p-4 rounded-xl border text-left transition ${
-                selectedSymbol === sym
-                  ? "bg-[#0066FF]/10 border-[#0066FF]"
-                  : "bg-[#10151D] border-[#1D2530] hover:border-gray-600"
-              }`}
-            >
-              <p className="text-xs text-gray-500 mb-1">{sym}</p>
-              <p className="font-mono-num text-lg font-bold">
-                {livePrices[sym] ? `$${livePrices[sym]!.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
-              </p>
-            </button>
-          ))}
+          {SYMBOLS.map((sym) => {
+            const dir = priceDirection[sym];
+            return (
+              <button
+                key={sym}
+                onClick={() => setSelectedSymbol(sym)}
+                className={`p-4 rounded-xl border text-left transition relative overflow-hidden ${
+                  selectedSymbol === sym
+                    ? "bg-[#0066FF]/10 border-[#0066FF]"
+                    : "bg-[#10151D] border-[#1D2530] hover:border-gray-600"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-gray-500 font-mono-num tracking-wide">{sym}</p>
+                  {dir && (
+                    <span
+                      className={`text-xs font-mono-num ${
+                        dir === "up" ? "text-[#16E39B]" : "text-[#FF4757]"
+                      }`}
+                    >
+                      {dir === "up" ? "▲" : "▼"}
+                    </span>
+                  )}
+                </div>
+                <p
+                  className={`font-mono-num text-lg font-bold transition-colors ${
+                    dir === "up" ? "text-[#16E39B]" : dir === "down" ? "text-[#FF4757]" : "text-white"
+                  }`}
+                >
+                  {livePrices[sym]
+                    ? `$${livePrices[sym]!.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                    : "—"}
+                </p>
+              </button>
+            );
+          })}
         </div>
 
         {/* Trade panel */}
