@@ -79,14 +79,21 @@ export async function POST(req: NextRequest) {
     const prizePool = tournament.prizePool || 0;
 
     const winners: Record<string, any> = {};
-    topWinners.forEach((entry, index) => {
+    for (let index = 0; index < topWinners.length; index++) {
+      const entry = topWinners[index];
+      const userSnapshot = await adminDb.ref(`users/${entry.uid}`).once("value");
+      const userData = userSnapshot.val();
+
       winners[index + 1] = {
         uid: entry.uid,
+        email: userData?.email || "unknown",
+        walletAddress: userData?.walletAddress || null,
         finalEquity: entry.currentEquity,
         pnlPercent: entry.pnlPercent,
         prize: Math.round(prizePool * (payoutPercentages[index] || 0) * 100) / 100,
+        paid: false,
       };
-    });
+    }
 
     await tournamentRef.update({
       status: "completed",

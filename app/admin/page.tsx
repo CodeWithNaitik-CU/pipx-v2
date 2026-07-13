@@ -18,9 +18,12 @@ interface Tournament {
 
 interface Winner {
   uid: string;
+  email: string;
+  walletAddress: string | null;
   finalEquity: number;
   pnlPercent: number;
   prize: number;
+  paid: boolean;
 }
 
 interface AdminUser {
@@ -286,18 +289,26 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6 max-w-md w-full">
             <h3 className="font-display text-xl font-bold mb-4">🏆 Tournament Winners</h3>
-            <div className="space-y-2 mb-4">
+            <div className="space-y-3 mb-4">
               {winnersModal.map((w, i) => (
-                <div
-                  key={w.uid}
-                  className="flex justify-between items-center bg-[#0A0E14] rounded-lg px-4 py-3"
-                >
-                  <span className="text-sm text-gray-300">
-                    #{i + 1} — Trader-{w.uid.slice(-4)}
-                  </span>
-                  <span className="font-mono-num text-sm text-[#FFB800] font-bold">
-                    ${w.prize.toFixed(2)}
-                  </span>
+                <div key={w.uid} className="bg-[#0A0E14] rounded-lg px-4 py-3">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-sm text-gray-300">
+                      #{i + 1} — {w.email}
+                    </span>
+                    <span className="font-mono-num text-sm text-[#FFB800] font-bold">
+                      ${w.prize.toFixed(2)}
+                    </span>
+                  </div>
+                  {w.walletAddress ? (
+                    <p className="font-mono-num text-xs text-gray-500 break-all">
+                      {w.walletAddress}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-[#FF4757]">
+                      ⚠ No wallet address on file — contact this user before paying out.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
