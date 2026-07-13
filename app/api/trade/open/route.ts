@@ -52,9 +52,28 @@ export async function POST(req: NextRequest) {
     const notionalValue = lots * contractSize * entryPrice;
     const marginRequired = notionalValue / LEVERAGE;
 
-    if (marginRequired > participant.currentEquity) {
+    if (lots <= 0 || lots > 100) {
+      return NextResponse.json({ error: "Invalid lot size" }, { status: 400 });
+    }
+
+    // Calculate margin already locked in other open positions
+    const positionsSnapshot = await adminDb.ref(`positions/${tournamentId}/${uid}`).once("value");
+    const existingPositions = positionsSnapshot.val() || {};
+
+    let marginInUse = 0;
+    for (const pos of Object.values(existingPositions) as any[]) {
+      if (pos.status === "open") {
+        marginInUse += (pos.lots * pos.contractSize * pos.entryPrice) / LEVERAGE;
+      }
+    }
+
+    const availableMargin = participant.currentEquity - marginInUse;
+
+    if (marginRequired > availableMargin) {
       return NextResponse.json(
-        { error: `Insufficient balance. Requires $${marginRequired.toFixed(2)} margin.` },
+        {
+          error: `Insufficient available margin. This trade needs $${marginRequired.toFixed(2)}, but only $${availableMargin.toFixed(2)} is available (${marginInUse.toFixed(2)} already locked in open positions).`,
+        },
         { status: 400 }
       );
     }
