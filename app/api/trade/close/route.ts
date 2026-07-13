@@ -10,6 +10,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    const tournamentSnapshot = await adminDb.ref(`tournaments/${tournamentId}`).once("value");
+    const tournamentData = tournamentSnapshot.val();
+
+    if (!tournamentData) {
+      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+    }
+
+    if (tournamentData.status === "completed") {
+      return NextResponse.json({ error: "This tournament has ended" }, { status: 400 });
+    }
+
     const positionRef = adminDb.ref(`positions/${tournamentId}/${uid}/${positionId}`);
     const snapshot = await positionRef.once("value");
     const position = snapshot.val();

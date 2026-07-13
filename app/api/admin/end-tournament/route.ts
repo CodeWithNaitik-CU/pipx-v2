@@ -26,7 +26,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tournament already completed" }, { status: 400 });
     }
 
-    // Get final leaderboard rankings
+    // Force-close all open positions at current market price before finalizing
+    const { getXAUUSDPrice, getCryptoPrices } = await import("@/lib/prices");
+    const [xau, crypto] = await Promise.all([getXAUUSDPrice(), getCryptoPrices()]);
+    const currentPrices: Record<string, number | null> = {
+      XAUUSD: xau,
+      BTCUSD: crypto.btc,
+      ETHUSD: crypto.eth,
+    };
+
+    const participantsSnapshot = await adminDb.ref(`tournaments/${tournamentId}/participants`).once("value");
+    const participants = participantsSnapshot.val() || {};
+
+    for (const uid of Object.keys(participants)) {
+      const positionsSnapshot = await adminDb.ref(`positions/${tournamentId}/${uid}`).once("value");
+      const userPositions = positionsSnapshot.val() || {};
+
+      for (const [positionId, position] of Object.entries(userPositions) as [string, any][]) {
+        if (position.status !== "open") continue;
+
+        const closePrice = currentPrices[position.symbol];
+        if (!closePrice) continue;
+
+        const priceDiff =
+          position.direction === "buy"
+            ? closePrice - position.entryPrice
+            : position.entryPrice - closePrice;
+        const pnl = position.lots * position.contractSize * priceDiff;
+
+        await adminDb.ref(`positions/${tournamentId}/${uid}/${positionId}`).update({
+          status: "closed",
+          closedAt: Date.now(),
+          closePrice,
+          pnl,
+          closedReason: "tournament_ended",
+        });
+
+        const participantRef = adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`);
+        const participantSnapshot = await participantRef.once("value");
+        const participantData = participantSnapshot.val();
+        const newEquity = participantData.currentEquity + pnl;
+        await participantRef.update({ currentEquity: newEquity });
+      }
+    }
+
+    // Get final leaderboard rankings (now reflects force-closed positions)
     const leaderboard = await getTournamentLeaderboard(tournamentId);
     const topWinners = leaderboard.slice(0, 5); // Top 5 winners
 
