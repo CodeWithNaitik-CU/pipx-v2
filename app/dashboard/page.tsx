@@ -144,6 +144,9 @@ export default function DashboardPage() {
         </h1>
         <div className="flex items-center gap-5">
           <span className="text-sm text-gray-500 hidden sm:inline">{user?.email}</span>
+          <Link href="/settings" className="text-sm text-gray-400 hover:text-white transition">
+            Settings
+          </Link>
           <button
             onClick={handleLogout}
             className="text-sm text-gray-400 hover:text-white transition"
@@ -163,6 +166,17 @@ export default function DashboardPage() {
             Trade live markets, climb the leaderboard, win real prizes.
           </p>
         </div>
+
+        {!profile?.walletAddress && (
+          <div className="bg-[#FFB800]/10 border border-[#FFB800]/30 rounded-xl px-5 py-3 mb-6 flex items-center justify-between">
+            <p className="text-sm text-[#FFB800]">
+              Add your wallet address to receive prize payouts.
+            </p>
+            <Link href="/settings" className="text-xs font-semibold text-[#FFB800] hover:underline">
+              Add now →
+            </Link>
+          </div>
+        )}
 
         {profile?.currentTournamentId && tournamentStatus === "active" ? (
           <>
