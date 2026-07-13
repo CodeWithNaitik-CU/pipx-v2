@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, signOut, sendEmailVerification, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { ref, onValue } from "firebase/database";
 import Link from "next/link";
@@ -64,8 +64,23 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
+  const handleResendVerification = async () => {
+    if (!user) return;
+    try {
+      await sendEmailVerification(user);
+      alert("Verification email sent! Check your inbox.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to send verification email. Please try again shortly.");
+    }
+  };
+
   const handleJoinTournament = async () => {
     if (!user) return;
+    if (!user.emailVerified) {
+      alert("Please verify your email before joining a tournament.");
+      return;
+    }
     setPayingLoading(true);
 
     try {
@@ -166,6 +181,20 @@ export default function DashboardPage() {
             Trade live markets, climb the leaderboard, win real prizes.
           </p>
         </div>
+
+        {user && !user.emailVerified && (
+          <div className="bg-[#FF4757]/10 border border-[#FF4757]/30 rounded-xl px-5 py-3 mb-6 flex items-center justify-between">
+            <p className="text-sm text-[#FF4757]">
+              Please verify your email before joining a tournament.
+            </p>
+            <button
+              onClick={handleResendVerification}
+              className="text-xs font-semibold text-[#FF4757] hover:underline"
+            >
+              Resend email →
+            </button>
+          </div>
+        )}
 
         {!profile?.walletAddress && (
           <div className="bg-[#FFB800]/10 border border-[#FFB800]/30 rounded-xl px-5 py-3 mb-6 flex items-center justify-between">
