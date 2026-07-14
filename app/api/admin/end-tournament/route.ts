@@ -78,19 +78,42 @@ export async function POST(req: NextRequest) {
     const payoutPercentages = [0.4, 0.25, 0.15, 0.12, 0.08];
     const prizePool = tournament.prizePool || 0;
 
-    const winners: Record<string, any> = {};
+    const publicWinners: Record<string, any> = {};
+    const privatePayoutDetails: Record<string, any> = {};
+    const fullWinnersForResponse: Record<string, any> = {};
+
     for (let index = 0; index < topWinners.length; index++) {
       const entry = topWinners[index];
       const userSnapshot = await adminDb.ref(`users/${entry.uid}`).once("value");
       const userData = userSnapshot.val();
+      const rank = index + 1;
+      const prize = Math.round(prizePool * (payoutPercentages[index] || 0) * 100) / 100;
 
-      winners[index + 1] = {
+      // Public data — safe for any logged-in user to read (no PII)
+      publicWinners[rank] = {
+        uid: entry.uid,
+        finalEquity: entry.currentEquity,
+        pnlPercent: entry.pnlPercent,
+        prize,
+      };
+
+      // Private data — only accessible via Admin SDK, never exposed to client reads
+      privatePayoutDetails[rank] = {
+        uid: entry.uid,
+        email: userData?.email || "unknown",
+        walletAddress: userData?.walletAddress || null,
+        prize,
+        paid: false,
+      };
+
+      // Full response sent directly to the admin's browser via this API call only
+      fullWinnersForResponse[rank] = {
         uid: entry.uid,
         email: userData?.email || "unknown",
         walletAddress: userData?.walletAddress || null,
         finalEquity: entry.currentEquity,
         pnlPercent: entry.pnlPercent,
-        prize: Math.round(prizePool * (payoutPercentages[index] || 0) * 100) / 100,
+        prize,
         paid: false,
       };
     }
@@ -98,10 +121,12 @@ export async function POST(req: NextRequest) {
     await tournamentRef.update({
       status: "completed",
       completedAt: Date.now(),
-      winners,
+      winners: publicWinners,
     });
 
-    return NextResponse.json({ success: true, winners });
+    await adminDb.ref(`payoutDetails/${tournamentId}`).set(privatePayoutDetails);
+
+    return NextResponse.json({ success: true, winners: fullWinnersForResponse });
   } catch (error) {
     console.error("End tournament error:", error);
     return NextResponse.json({ error: "Failed to end tournament" }, { status: 500 });

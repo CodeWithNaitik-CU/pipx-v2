@@ -17,16 +17,20 @@ export async function GET(req: NextRequest) {
     for (const [tournamentId, data] of Object.entries(tournaments) as [string, any][]) {
       if (data.status !== "completed" || !data.winners) continue;
 
+      const payoutDetailsSnapshot = await adminDb.ref(`payoutDetails/${tournamentId}`).once("value");
+      const payoutDetails = payoutDetailsSnapshot.val() || {};
+
       for (const [rank, winner] of Object.entries(data.winners) as [string, any][]) {
+        const details = payoutDetails[rank] || {};
         payouts.push({
           tournamentId,
           tournamentName: data.name,
           rank: Number(rank),
           uid: winner.uid,
-          email: winner.email,
-          walletAddress: winner.walletAddress,
+          email: details.email || "unknown",
+          walletAddress: details.walletAddress || null,
           prize: winner.prize,
-          paid: winner.paid || false,
+          paid: details.paid || false,
         });
       }
     }
@@ -39,7 +43,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch payouts" }, { status: 500 });
   }
 }
-
 export async function POST(req: NextRequest) {
   try {
     const { email, tournamentId, rank } = await req.json();
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    await adminDb.ref(`tournaments/${tournamentId}/winners/${rank}/paid`).set(true);
+    await adminDb.ref(`payoutDetails/${tournamentId}/${rank}/paid`).set(true);
 
     return NextResponse.json({ success: true });
   } catch (error) {
