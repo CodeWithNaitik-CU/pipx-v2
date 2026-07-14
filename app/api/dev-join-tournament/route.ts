@@ -39,7 +39,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).update({
+    // Check if this user is already a participant — don't reset their progress
+    const participantSnapshot = await adminDb
+      .ref(`tournaments/${tournamentId}/participants/${uid}`)
+      .once("value");
+
+    if (participantSnapshot.exists()) {
+      // Already joined — just make sure their profile points to this tournament, don't touch equity
+      await adminDb.ref(`users/${uid}`).update({
+        currentTournamentId: tournamentId,
+      });
+      return NextResponse.json({ success: true, tournamentId, alreadyJoined: true });
+    }
+
+    // First-time entry for this user in this tournament
+    await adminDb.ref(`tournaments/${tournamentId}/participants/${uid}`).set({
       joinedAt: Date.now(),
       startingBalance: 1000,
       currentEquity: 1000,
