@@ -34,8 +34,18 @@ export default function LeaderboardPage() {
     return () => unsubscribe();
   }, [router]);
 
-  const fetchLeaderboard = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      fetchLeaderboard(true);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const fetchLeaderboard = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await fetch("/api/leaderboard");
       const data = await res.json();
@@ -44,7 +54,7 @@ export default function LeaderboardPage() {
     } catch (error) {
       console.error("Failed to load leaderboard:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -65,11 +75,17 @@ export default function LeaderboardPage() {
       </nav>
 
       <div className="max-w-3xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <p className="font-mono-num text-xs text-[#0066FF] mb-2 tracking-widest">
-            {tournamentId || "LOADING..."}
-          </p>
-          <h1 className="font-display text-3xl font-bold">Live Leaderboard</h1>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <p className="font-mono-num text-xs text-[#0066FF] mb-2 tracking-widest">
+              {tournamentId || "LOADING..."}
+            </p>
+            <h1 className="font-display text-3xl font-bold">Live Leaderboard</h1>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-500 font-mono-num">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#16E39B] animate-pulse" />
+            LIVE
+          </div>
         </div>
 
         {loading ? (
@@ -125,7 +141,7 @@ export default function LeaderboardPage() {
         )}
 
         <button
-          onClick={fetchLeaderboard}
+          onClick={() => fetchLeaderboard(false)}
           className="mt-6 text-sm text-gray-400 hover:text-white transition"
         >
           ↻ Refresh leaderboard
