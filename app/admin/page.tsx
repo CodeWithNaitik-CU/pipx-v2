@@ -57,6 +57,11 @@ export default function AdminPage() {
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [endingId, setEndingId] = useState<string | null>(null);
   const [winnersModal, setWinnersModal] = useState<Winner[] | null>(null);
+  const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -143,6 +148,46 @@ export default function AdminPage() {
       alert("Failed to update payout status");
     } finally {
       setMarkingPaid(null);
+    }
+  };
+
+  const openEditModal = (t: Tournament) => {
+    setEditingTournament(t);
+    setEditName(t.name);
+    setEditStartDate(new Date(t.startDate).toISOString().slice(0, 16));
+    setEditEndDate(new Date(t.endDate).toISOString().slice(0, 16));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!user?.email || !editingTournament) return;
+    setSavingEdit(true);
+
+    try {
+      const res = await fetch("/api/admin/edit-tournament", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          tournamentId: editingTournament.id,
+          name: editName,
+          startDate: editStartDate,
+          endDate: editEndDate,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEditingTournament(null);
+        fetchAdminData(user.email);
+      } else {
+        alert(data.error || "Failed to update tournament");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -246,7 +291,7 @@ export default function AdminPage() {
 
         {tab === "tournaments" && (
           <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_100px_90px_90px_150px_90px] gap-4 px-6 py-3 border-b border-[#1D2530] text-gray-500 text-xs font-mono-num">
+            <div className="grid grid-cols-[1fr_100px_90px_90px_150px_130px] gap-4 px-6 py-3 border-b border-[#1D2530] text-gray-500 text-xs font-mono-num">
               <span>NAME</span>
               <span>STATUS</span>
               <span className="text-right">PLAYERS</span>
@@ -260,7 +305,7 @@ export default function AdminPage() {
               tournaments.map((t) => (
                 <div
                   key={t.id}
-                  className="grid grid-cols-[1fr_100px_90px_90px_150px_90px] gap-4 px-6 py-4 border-b border-[#1D2530] last:border-0 items-center text-sm hover:bg-white/[0.02] transition"
+                  className="grid grid-cols-[1fr_100px_90px_90px_150px_130px] gap-4 px-6 py-4 border-b border-[#1D2530] last:border-0 items-center text-sm hover:bg-white/[0.02] transition"
                 >
                   <div>
                     <p className="text-gray-200 font-medium">{t.name}</p>
@@ -280,7 +325,13 @@ export default function AdminPage() {
                   <span className="text-right text-xs text-gray-500">
                     {formatDate(t.startDate)} – {formatDate(t.endDate)}
                   </span>
-                  <span className="text-right">
+                  <span className="text-right flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => openEditModal(t)}
+                      className="text-xs bg-gray-700/30 text-gray-300 hover:bg-gray-700/50 px-3 py-1.5 rounded-lg transition font-medium"
+                    >
+                      Edit
+                    </button>
                     {t.status === "active" ? (
                       <button
                         onClick={() => handleEndTournament(t.id)}
@@ -416,6 +467,67 @@ export default function AdminPage() {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {editingTournament && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#10151D] border border-[#1D2530] rounded-2xl p-6 max-w-md w-full">
+            <h3 className="font-display text-xl font-bold mb-1">Edit Tournament</h3>
+            <p className="text-xs text-gray-600 font-mono-num mb-5">{editingTournament.id}</p>
+
+            <div className="space-y-4 mb-5">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Tournament Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">Start Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5">End Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white text-sm"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-600 mb-5">
+              Note: editing dates changes what's displayed to users, but does not change which
+              tournament new participants are automatically placed into — that still follows the
+              real calendar week.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingTournament(null)}
+                className="flex-1 border border-gray-700 hover:border-gray-500 text-gray-300 font-semibold py-2.5 rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="flex-1 bg-[#0066FF] hover:bg-[#0052CC] disabled:bg-gray-700 text-white font-semibold py-2.5 rounded-lg transition"
+              >
+                {savingEdit ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}
