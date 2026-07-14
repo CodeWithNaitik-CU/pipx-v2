@@ -1,6 +1,6 @@
 "use client";
 
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { ref, set, serverTimestamp } from "firebase/database";
 import { auth, db } from "@/lib/firebase";
 import { useState } from "react";
@@ -42,6 +42,8 @@ export default function SignupPage() {
           bestRank: null,
         },
       });
+
+      await sendEmailVerification(user);
 
       router.push("/dashboard");
     } catch (err: any) {
